@@ -1,6 +1,8 @@
 import numpy as np  # useful for many scientific computing in Python
 import pandas as pd # primary data structure library
 import folium # !conda install -c conda-forge folium=0.5.0 --yes
+from folium         import plugins
+from folium.plugins import HeatMap
 import os
 import math
 
@@ -178,27 +180,29 @@ for k in points:
 
 
 #p = '20041001'
-dates = points.keys()
-dates.sort()
-for p in dates():
+dates = sorted(points.keys())
+for p in dates:
     # define the world map
     world_map = folium.Map(width=500, height=500, location=[0, 0], zoom_start=1)
 
     # bounds parameter: bounds (list of points (latitude, longitude)) - Latitude and Longitude of line (Northing, Easting)
+    heat_list = []
     for point in points[p]['points']:
-        upper_left  = (point['Latitude']+points[p]['lat_step']/2, point['Longitude']-points[p]['long_step']/2)
-        upper_right = (point['Latitude']+points[p]['lat_step']/2, point['Longitude']+points[p]['long_step']/2)
-        lower_right = (point['Latitude']-points[p]['lat_step']/2, point['Longitude']-points[p]['long_step']/2)
-        lower_left  = (point['Latitude']-points[p]['lat_step']/2, point['Longitude']+points[p]['long_step']/2)
-        folium.Rectangle(
-            bounds=[upper_left, upper_right, lower_right, lower_left],
-            fill=True,
-            fill_color=point['color'],
-            color=point['color'],
-            opacity=0.1,
-            popup=point['text'],
-        ).add_to(world_map)
+        heat_list.append([point['Latitude'], point['Longitude'], (points[p]['max']-point['score'])/points[p]['max']])
+        # upper_left  = (point['Latitude']+points[p]['lat_step']/2, point['Longitude']-points[p]['long_step']/2)
+        # upper_right = (point['Latitude']+points[p]['lat_step']/2, point['Longitude']+points[p]['long_step']/2)
+        # lower_right = (point['Latitude']-points[p]['lat_step']/2, point['Longitude']-points[p]['long_step']/2)
+        # lower_left  = (point['Latitude']-points[p]['lat_step']/2, point['Longitude']+points[p]['long_step']/2)
+        # folium.Rectangle(
+        #     bounds=[upper_left, upper_right, lower_right, lower_left],
+        #     fill=True,
+        #     fill_color=point['color'],
+        #     color=point['color'],
+        #     opacity=0.1,
+        #     popup=point['text'],
+        # ).add_to(world_map)
 
+    HeatMap(heat_list, radius=10).add_to(world_map)
     img_data = world_map._to_png()
 
     img = Image.open(io.BytesIO(img_data))
