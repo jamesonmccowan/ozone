@@ -1,8 +1,6 @@
 import numpy as np  # useful for many scientific computing in Python
 import pandas as pd # primary data structure library
 import folium # !conda install -c conda-forge folium=0.5.0 --yes
-from folium         import plugins
-from folium.plugins import HeatMap
 import os
 import math
 
@@ -10,17 +8,6 @@ import io
 from PIL import Image
 import geckodriver_autoinstaller
 geckodriver_autoinstaller.install()
-
-
-# load the data from the files
-data = {}
-file_list = os.listdir('./data/')
-
-for f in file_list:
-    if 'L3_ozone_omi_2004' in f: # get records only for the year 2004
-    # if f[0] == 'L': # get all records
-        with open('./data/{0}'.format(f)) as data_file:
-            data[f] = data_file.read()
 
 
 # parse the files into points
@@ -101,10 +88,6 @@ def parse_data(data_str):
         "lat_bins":   lat_bins,
     }
 
-points = {}
-for k in data:
-    points[k[13:21]] = parse_data(data[k])
-
 
 ## color the points
 # 1. red (#FF0000)
@@ -159,51 +142,66 @@ def score_to_color(score, safe_score, max_score):
 
     return color
 
+
 # a safe level of ozone isn't something I've been able to determine exactly. but the agreed upon normal in dobson units (DU) seems to be 300
 # https://theozonehole.com/dobsonunit.htm
-patch_holes = True
+def color_points(points, safe_score, max_score, patch_holes):
+    for i in range(len(points)):
+            point = points[i]
+            score = point['score']
 
-for k in points:
-    p = points[k]
-    for i in range(len(p['points'])):
-        point = p['points'][i]
-        score = point['score']
+            if score == 0 and patch_holes:
+                if i > 0 and i < len(points) - 1:
+                    if points[i-1] != 0 and points[i+1] != 0:
+                        score = (points[i-1]['score'] + points[i+1]['score']) / 2
 
-        if score == 0 and patch_holes:
-            if i > 0 and i < len(p['points']) - 1:
-                if p['points'][i-1] != 0 and p['points'][i+1] != 0:
-                    score = (p['points'][i-1]['score'] + p['points'][i+1]['score']) / 2
-
-        point['color'] = score_to_color(score, 300, p['max'])
-        point['text'] = str(point['score'])
+            point['color'] = score_to_color(score, safe_score, max_score)
+            point['text'] = str(point['score'])
 
 
-
-#p = '20041001'
-dates = sorted(points.keys())
-for p in dates:
+def point_to_map(points, name):
     # define the world map
-    world_map = folium.Map(width=500, height=500, location=[0, 0], zoom_start=1)
+    world_map = folium.Map(width=500, height=500, location=[0, 0], zoom_start=1, zoom_control=False, tiles="OpenStreetMap")
+
+    # add text to map
+    html = '''
+        <b>{}</b>
+    '''.format(name)
+    world_map.get_root().html.add_child(folium.Element(html))
 
     # bounds parameter: bounds (list of points (latitude, longitude)) - Latitude and Longitude of line (Northing, Easting)
-    heat_list = []
-    for point in points[p]['points']:
-        heat_list.append([point['Latitude'], point['Longitude'], (points[p]['max']-point['score'])/points[p]['max']])
-        # upper_left  = (point['Latitude']+points[p]['lat_step']/2, point['Longitude']-points[p]['long_step']/2)
-        # upper_right = (point['Latitude']+points[p]['lat_step']/2, point['Longitude']+points[p]['long_step']/2)
-        # lower_right = (point['Latitude']-points[p]['lat_step']/2, point['Longitude']-points[p]['long_step']/2)
-        # lower_left  = (point['Latitude']-points[p]['lat_step']/2, point['Longitude']+points[p]['long_step']/2)
-        # folium.Rectangle(
-        #     bounds=[upper_left, upper_right, lower_right, lower_left],
-        #     fill=True,
-        #     fill_color=point['color'],
-        #     color=point['color'],
-        #     opacity=0.1,
-        #     popup=point['text'],
-        # ).add_to(world_map)
+    for point in points['points']:
+        upper_left  = (point['Latitude']+points['lat_step']/2, point['Longitude']-points['long_step']/2)
+        upper_right = (point['Latitude']+points['lat_step']/2, point['Longitude']+points['long_step']/2)
+        lower_right = (point['Latitude']-points['lat_step']/2, point['Longitude']-points['long_step']/2)
+        lower_left  = (point['Latitude']-points['lat_step']/2, point['Longitude']+points['long_step']/2)
+        folium.Rectangle(
+            bounds=[upper_left, upper_right, lower_right, lower_left],
+            fill=True,
+            fill_color=point['color'],
+            color=point['color'],
+            opacity=0.1,
+            popup=point['text'],
+        ).add_to(world_map)
 
-    HeatMap(heat_list, radius=10).add_to(world_map)
     img_data = world_map._to_png()
 
     img = Image.open(io.BytesIO(img_data))
-    img.crop((0, 0, 500, 500)).save(p + '.png')
+    img.crop((0, 0, 500, 500)).save(name + '.png')
+
+
+# load the data from the files
+file_list = sorted(os.listdir('./data/'))
+for f in file_list:
+    if 'L3_ozone_omi_2004' in f: # get records only for the year 2004
+    # if f[0] == 'L': # get all records
+        with open('./data/{0}'.format(f)) as data_file:
+            print("opened {0}".format(f))
+            raw = data_file.read()
+            print("finished loading data, now parsing data")
+            data = parse_data(raw)
+            print("finished parsing data, now coloring points")
+            color_points(data['points'], 300, data['max'], True)
+            print("finished coloring points, now making image")
+            point_to_map(data, f[13:21])
+            print("image made")
