@@ -159,14 +159,25 @@ def color_points(points, safe_score, max_score, patch_holes):
             point['text'] = str(point['score'])
 
 
-def point_to_map(points, name):
+def point_to_map(points, name, safe_score=300, max_score=600):
     # define the world map
     world_map = folium.Map(width=500, height=500, location=[0, 0], zoom_start=1, zoom_control=False, tiles="OpenStreetMap")
 
     # add text to map
     html = '''
-        <b>{}</b>
-    '''.format(name)
+        <div style="">
+          <span style="display: inline-block;">
+            <span style="background-color: #FF0000;">&#160;1&#160;</span><span style="background-color: #FFFF00;">&#160;{1}&#160;</span><span style="background-color: #00FF00;">&#160;{2}&#160;</span><span style="background-color: #00FFFF;">&#160;{3}&#160;</span><span style="background-color: #0000FF;">&#160;{4}&#160;</span>
+          </span>
+          <span style="display: inline-block; margin-left: 250px;">{0}</span>
+        </div>
+    '''.format(
+            name,
+            int(safe_score/2),
+            safe_score,
+            int(((max_score-safe_score)/2)+safe_score),
+            max_score
+        )
     world_map.get_root().html.add_child(folium.Element(html))
 
     # bounds parameter: bounds (list of points (latitude, longitude)) - Latitude and Longitude of line (Northing, Easting)
@@ -201,7 +212,8 @@ for f in file_list:
             print("finished loading data, now parsing data")
             data = parse_data(raw)
             print("finished parsing data, now coloring points")
-            color_points(data['points'], 300, data['max'], True)
+            # color_points(data['points'], 300, data['max'], True)
+            color_points(data['points'], 300, 600, True)
             print("finished coloring points, now making image")
             point_to_map(data, f[13:21])
             print("image made")
