@@ -95,44 +95,35 @@ def parse_data(data_str):
 # 3. green (#00FF00) (safe)
 # 4. turquoise (#00FFFF)
 # 5. blue (#0000FF)
-def score_to_color(score, safe_score, max_score):
+def score_to_color(score, score_a, score_b, score_c, score_d, score_e):
     color = ""
-
-    if max_score < safe_score:
-        max_score = safe_score
 
     if score <= 0: # score should never be 0 or negative, show error state
         color = "#000000"
 
-    elif score < safe_score / 2: # red to yellow (#FF0000 to #FFFF00)
-        a = 255 * score / (safe_score / 2) # value between 0 and 256
+    elif score <= score_a: # red
+        color = "#FF0000"
+
+    elif score < score_b: # red to yellow (#FF0000 to #FFFF00)
+        a = 255 * ((score - score_a) / (score_b - score_a)) # value between 0 and 256
         b = math.floor(a % 16)
         a = math.floor(a / 16)
         color = "#FF" + (hex(a)[-1]) + (hex(b)[-1]) + "00"
 
-    elif score < safe_score: # yellow to green (#FFFF00 to #00FF00)
-        range_start = safe_score / 2
-        range_end = safe_score
-        true_range = range_end - range_start
-        a = 255 * (1 - (score - range_start) / true_range) # value between 256 and 0
+    elif score < score_c: # yellow to green (#FFFF00 to #00FF00)
+        a = 255 * (1 - (score - score_b) / (score_c - score_b)) # value between 256 and 0
         b = math.floor(a % 16)
         a = math.floor(a / 16)
         color = "#" + (hex(a)[-1]) + (hex(b)[-1]) + "FF00"
 
-    elif score < ((max_score-safe_score) / 2) + safe_score: # green to turquoise (#00FF00 to #00FFFF)
-        range_start = safe_score
-        range_end = ((max_score-safe_score) / 2) + safe_score
-        true_range = range_end - range_start
-        a = 255 * ((score - range_start) / true_range) # value between 0 and 256
+    elif score < score_d: # green to turquoise (#00FF00 to #00FFFF)
+        a = 255 * ((score - score_c) / (score_d - score_c)) # value between 0 and 256
         b = math.floor(a % 16)
         a = math.floor(a / 16)
         color = "#00FF" + (hex(a)[-1]) + (hex(b)[-1])
 
-    elif score < max_score: # turquoise to blue (#00FFFF to #0000FF)
-        range_start = ((max_score-safe_score) / 2) + safe_score
-        range_end = max_score
-        true_range = range_end - range_start
-        a = 255 * (1 - (score - range_start) / true_range) # value between 0 and 256
+    elif score < score_e: # turquoise to blue (#00FFFF to #0000FF)
+        a = 255 * (1 - (score - score_d) / (score_e - score_d)) # value between 256 and 0
         b = math.floor(a % 16)
         a = math.floor(a / 16)
         color = "#00" + (hex(a)[-1]) + (hex(b)[-1]) + "FF"
@@ -145,7 +136,7 @@ def score_to_color(score, safe_score, max_score):
 
 # a safe level of ozone isn't something I've been able to determine exactly. but the agreed upon normal in dobson units (DU) seems to be 300
 # https://theozonehole.com/dobsonunit.htm
-def color_points(points, safe_score, max_score, patch_holes):
+def color_points(points, patch_holes, score_a, score_b, score_c, score_d, score_e):
     for i in range(len(points)):
             point = points[i]
             score = point['score']
@@ -155,11 +146,11 @@ def color_points(points, safe_score, max_score, patch_holes):
                     if points[i-1] != 0 and points[i+1] != 0:
                         score = (points[i-1]['score'] + points[i+1]['score']) / 2
 
-            point['color'] = score_to_color(score, safe_score, max_score)
+            point['color'] = score_to_color(score, score_a, score_b, score_c, score_d, score_e)
             point['text'] = str(point['score'])
 
 
-def point_to_map(points, name, safe_score=300, max_score=600):
+def point_to_map(points, name, score_a, score_b, score_c, score_d, score_e):
     # define the world map
     world_map = folium.Map(width=500, height=500, location=[0, 0], zoom_start=1, zoom_control=False, tiles="OpenStreetMap")
 
@@ -167,17 +158,11 @@ def point_to_map(points, name, safe_score=300, max_score=600):
     html = '''
         <div style="">
           <span style="display: inline-block;">
-            <span style="background-color: #FF0000;">&#160;1&#160;</span><span style="background-color: #FFFF00;">&#160;{1}&#160;</span><span style="background-color: #00FF00;">&#160;{2}&#160;</span><span style="background-color: #00FFFF;">&#160;{3}&#160;</span><span style="background-color: #0000FF;">&#160;{4}&#160;</span>
+            <span style="background-color: #FF0000;">&#160;{1}&#160;</span><span style="background-color: #FFFF00;">&#160;{2}&#160;</span><span style="background-color: #00FF00;">&#160;{3}&#160;</span><span style="background-color: #00FFFF;">&#160;{4}&#160;</span><span style="background-color: #0000FF;">&#160;{5}&#160;</span>
           </span>
           <span style="display: inline-block; margin-left: 250px;">{0}</span>
         </div>
-    '''.format(
-            name,
-            int(safe_score/2),
-            safe_score,
-            int(((max_score-safe_score)/2)+safe_score),
-            max_score
-        )
+    '''.format(name, score_a, score_b, score_c, score_d, score_e)
     world_map.get_root().html.add_child(folium.Element(html))
 
     # bounds parameter: bounds (list of points (latitude, longitude)) - Latitude and Longitude of line (Northing, Easting)
@@ -213,7 +198,7 @@ for f in file_list:
             data = parse_data(raw)
             print("finished parsing data, now coloring points")
             # color_points(data['points'], 300, data['max'], True)
-            color_points(data['points'], 300, 600, True)
+            color_points(data['points'], True, 100, 225, 350, 476, 600)
             print("finished coloring points, now making image")
-            point_to_map(data, f[13:21])
+            point_to_map(data, f[13:21], 100, 225, 350, 476, 600)
             print("image made")
