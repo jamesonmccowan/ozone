@@ -3,6 +3,8 @@ import pandas as pd # primary data structure library
 import folium # !conda install -c conda-forge folium=0.5.0 --yes
 import os
 import math
+import datetime
+import time
 
 import io
 from PIL import Image
@@ -74,15 +76,11 @@ def parse_data(data_str):
         "day": day,
 
         "long_start": long_start,
-        "long_start": long_start,
-        "long_stop":  long_stop,
         "long_stop":  long_stop,
         "long_step":  long_step,
         "long_bins":  long_bins,
 
         "lat_start":  lat_start,
-        "lat_start":  lat_start,
-        "lat_stop":   lat_stop,
         "lat_stop":   lat_stop,
         "lat_step":   lat_step,
         "lat_bins":   lat_bins,
@@ -186,19 +184,57 @@ def point_to_map(points, name, score_a, score_b, score_c, score_d, score_e):
     img.crop((0, 0, 500, 500)).save(name + '.png')
 
 
-# load the data from the files
-file_list = sorted(os.listdir('./data/'))
-for f in file_list:
-    if 'L3_ozone_omi_2004' in f: # get records only for the year 2004
-    # if f[0] == 'L': # get all records
-        with open('./data/{0}'.format(f)) as data_file:
-            print("opened {0}".format(f))
-            raw = data_file.read()
-            print("finished loading data, now parsing data")
-            data = parse_data(raw)
-            print("finished parsing data, now coloring points")
-            # color_points(data['points'], 300, data['max'], True)
+# load the data from the files and export PNG maps of the data
+print("ping")
+file_list  = sorted(os.listdir('./data/'))
+first      = file_list[0][13:21]
+last       = file_list[-1][13:21]
+start_date = datetime.date(int(first[0:4]), int(first[4:6]), int(first[6:8]))
+end_date   = datetime.date(int(last[0:4]), int(last[4:6]), int(last[6:8]))
+delta = datetime.timedelta(days=1)
+while (start_date <= end_date):
+    f = "L3_ozone_omi_{0}.txt".format(start_date.strftime('%Y%m%d'))
+    if not os.path.exists(f[13:21] + '.png'):
+        if os.path.exists('./data/{0}'.format(f)):
+            with open('./data/{0}'.format(f)) as data_file:
+                print("opened {0}".format(f))
+                raw = data_file.read()
+                print("finished loading data, now parsing data")
+                data = parse_data(raw)
+                print("finished parsing data, now coloring points")
+                color_points(data['points'], True, 100, 225, 350, 476, 600)
+                print("finished coloring points, now making image")
+                point_to_map(data, f[13:21], 100, 225, 350, 476, 600)
+                print("image made")
+        else:
+            print("generating blank image for missing file {0}".format(f))
+            data = {
+                "points": [{
+                    'Latitude':  0,
+                    'Longitude': 0,
+                    'score': 0,
+                    'color': '#ffffff'
+                }],
+                "max": 300,
+                "min": 300,
+                "day": f[13:21],
+
+                "long_start": 0,
+                "long_stop":  0,
+                "long_step":  360,
+                "long_bins":  1,
+
+                "lat_start":  0,
+                "lat_stop":   0,
+                "lat_step":   180,
+                "lat_bins":   1,
+            }
+
             color_points(data['points'], True, 100, 225, 350, 476, 600)
-            print("finished coloring points, now making image")
             point_to_map(data, f[13:21], 100, 225, 350, 476, 600)
+            time.sleep(30) # the map seems to not work if used too fast?
             print("image made")
+    else:
+        print("skipping image for {0}, already exists".format(f))
+
+    start_date += delta
