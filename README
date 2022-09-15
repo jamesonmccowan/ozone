@@ -1,0 +1,19 @@
+# Ozone Layer Over Time #
+
+## A Quick Look at atmospheric measurements of ozone levels ##
+This project consists of:
+
+* main.ipynb: Jupyter Notebook that gets data and parses it into line graphs based on ozone later data.
+** main.html: HTML export of the above Jupyter Notebook.
+** main.pdf: PDF export of the above Jupyter Notebook.
+* map_png_generator.py: Assumes main.ipynb has already been used to download all the data files into the local data/ directory. Generates .png images of Earth's ozone layer for every day there's data of, as well as images of missing days in the date range of the data files. These images can then be stitched together to make a video timelapse.
+* timelapse.bash: Simple script for making a timelapse from all .png images in the same directory as it. Expects to be run on a linux system that already has mencoder installed.
+
+## Sources ##
+Based on data from: [https://ozonewatch.gsfc.nasa.gov/data/omi/]
+Helpful explanation of some of the meanings of the data: [NASA - 
+New Simulation Shows Consequences of a World Without Earth's Natural Sunscreen](https://www.nasa.gov/topics/earth/features/world_avoided.html)
+More links for data: [https://ozonewatch.gsfc.nasa.gov/]
+
+
+
